@@ -1,3 +1,9 @@
+/* 
+ * Author: Qianli Yang (Peter)
+ * Date: Apr.13, 2015
+ * Email: qianliy@uci.edu
+ * 
+ */
 package test;
 
 import org.json.JSONArray;
@@ -11,53 +17,197 @@ import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Scanner;
 
 import org.apache.commons.codec.binary.Base64;
 
 public class test {
 	
-	public static void createUser() {
+	public static void testMobivityLoyaltyApi(String option) {
 		
-		try {
-			String username = "petery"; 
-			String password = "12345123";
-			String authString = username + ":" + password;
-			byte[] authEncBytes = Base64.encodeBase64(authString.getBytes()); 
-			String authStringEnc = new String (authEncBytes); 
-			
-			String endpoint = "https://mobivityloyaltyapi.appspot.com/users"; 
-			URL url = new URL(endpoint);
-			HttpURLConnection con = (HttpURLConnection) url.openConnection();
-			
-			con.setRequestMethod("POST");
-			con.setRequestProperty("Content-Type", "application/json");
-			con.setRequestProperty("Authorization", "Basic "+authStringEnc);
-			con.setDoOutput(true);
-			
-			JSONObject json = new JSONObject(); 
-			json.put("phone", "+1-949-123-1234");
-			json.put("name", "Peter");
-			json.put("gender", "male");
-			OutputStreamWriter osw = new OutputStreamWriter(con.getOutputStream());
-			osw.write(json.toString());
-			
-			osw.flush(); 
-			osw.close();
-			
-			int responseCode = con.getResponseCode(); 
-			System.out.println("'POST' to URL: "+ url);
-			System.out.println("Response Code: "+ responseCode);
+		// Authentications (Basic)
+		String username = "petery"; 
+		String password = "12345123";
+		String authString = username + ":" + password;
+		byte[] authEncBytes = Base64.encodeBase64(authString.getBytes()); 
+		String authStringEnc = new String (authEncBytes); 
+		// Variables for output and input 
+		String endpoint; 
+		URL url; 
+		HttpURLConnection con;
+		JSONObject json; 
+		OutputStreamWriter osw;
+		int responseCode;
+		BufferedReader br;
+		StringBuffer response; 
+		String inputLine;
+		Scanner scanner = new Scanner(System.in); 
 	
-            BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream()));
-            String inputLine;
-            StringBuffer response = new StringBuffer();
- 
-            while ((inputLine = br.readLine()) != null) {
-                response.append(inputLine);
-            }
-            br.close();
-            
-            System.out.println(response);	
+		try {
+			switch(option){
+			// POST /users
+			case "create":
+				endpoint = "https://mobivityloyaltyapi.appspot.com/users"; 
+				url = new URL(endpoint);
+				con = (HttpURLConnection) url.openConnection();				
+				con.setRequestMethod("POST");
+				con.setRequestProperty("Content-Type", "application/json");
+				con.setRequestProperty("Authorization", "Basic "+authStringEnc);
+				con.setDoOutput(true);
+				// prepare the JSON object
+				json = new JSONObject(); 
+				json.put("phone", "+1-949-123-1234");
+				json.put("name", "Peter");
+				json.put("gender", "male");
+				// fire the JSON object
+				osw = new OutputStreamWriter(con.getOutputStream());
+				osw.write(json.toString());
+				osw.flush(); 
+				osw.close();
+				// get response code 
+				responseCode = con.getResponseCode(); 
+				System.out.println("'POST' to URL: "+ url);
+				System.out.println("Response Code: "+ responseCode);
+				// get the actual response
+	            br = new BufferedReader(new InputStreamReader(con.getInputStream()));
+	            response = new StringBuffer();
+	            while ((inputLine = br.readLine()) != null) {
+	                response.append(inputLine);
+	            }
+	            br.close();
+	            
+	            System.out.println(response);
+	            break;
+	            
+			case "get/redeem": 
+				// GET user (and rewards)
+				endpoint = "https://mobivityloyaltyapi.appspot.com/users/%2B1-949-123-1234"; 
+				url = new URL(endpoint);
+				con = (HttpURLConnection) url.openConnection();
+				con.setRequestMethod("GET");
+				con.setRequestProperty("Authorization", "Basic "+authStringEnc);
+				con.setRequestProperty("Accept", "application/json");
+				con.connect();
+				// get response code
+				responseCode = con.getResponseCode(); 
+				System.out.println("'GET' to URL: "+ url);
+				System.out.println("Response Code: "+ responseCode);
+				// get the actual response 
+	            br = new BufferedReader(new InputStreamReader(con.getInputStream()));
+	            response = new StringBuffer();
+	            while ((inputLine = br.readLine()) != null) {
+	                response.append(inputLine);
+	            }
+	            br.close();
+	            
+	            System.out.println();
+	            System.out.println("Response body: ");
+	            System.out.println(response);
+	            
+	            // Redeem rewards (if any)
+	            json = new JSONObject (response.toString());
+	            JSONArray jsonArray = (JSONArray) json.get("rewards"); 
+	            // if no rewards, break
+	            if(jsonArray==null||jsonArray.length()==0){
+	            	System.out.println("Rewards: ");
+	            	System.out.println("Unfortunately, "
+	            			+ "you currently don't have any rewards");
+	            }else{
+	            // if any rewards, display them	
+		            JSONObject[] jsonArr = new JSONObject[jsonArray.length()]; 
+	            	System.out.println("Pick a reward:");
+		            for(int i=0;i<jsonArray.length();i++){
+		            	jsonArr[i] = (JSONObject) jsonArray.get(i);
+		            	System.out.println("Reward #"+(i+1)+": "+jsonArr[i].get("name"));
+		            }
+		            System.out.println("If you don't want to redeem a reward, "
+		            		+ "please choose 0");
+		            // pick a reward
+		            boolean condition = true, 
+		            		proceed = true;
+		            int num = 0; 
+		            do{
+		            	String input = scanner.nextLine();
+		            	try{
+		            		num = Integer.parseInt(input)-1;
+		            		if (num == -1) {
+		            			proceed = false;
+		            			break; 
+		            		}
+		            		if(num >= 0 && num < jsonArr.length){
+		            			condition = false;
+		            		}else{
+			            		System.out.println("Please choose a valid reward");
+		            		}
+		            	}catch(NumberFormatException e){
+		            		System.out.println("Please choose a valid reward");
+		            	}
+		            			            	
+		            }while(condition);
+		            
+		            if(!proceed){
+		            	break;
+		            }
+		            
+		            String redem_link =  jsonArr[num].getString("redemption_link");
+		            URL url_redem = new URL (redem_link); 
+		            HttpURLConnection con_redem = (HttpURLConnection) url_redem.openConnection();
+		            con_redem.setRequestMethod("GET");
+		            con_redem.setRequestProperty("Authorization", "Basic "+authStringEnc);
+		            con_redem.setRequestProperty("Accept", "application/json");
+		            con_redem.connect();
+					
+					int responseCode_redem = con_redem.getResponseCode(); 
+					System.out.println("'GET' to URL: "+ url_redem);
+					System.out.println("Response Code: "+ responseCode_redem);
+			
+		            br = new BufferedReader(new InputStreamReader(con_redem.getInputStream()));
+					response = new StringBuffer(); 
+					
+		            while ((inputLine = br.readLine()) != null) {
+		                response.append(inputLine);
+		            }
+		            br.close();
+					
+		            json = new JSONObject (response.toString()); 
+		            System.out.println(json); 
+	            }
+	            break;
+	            
+			case "credit":
+				// POST /users/%2B1-949-123-1234/credits
+				endpoint = "https://mobivityloyaltyapi.appspot.com/users/%2B1-949-123-1234/credits"; 
+				url = new URL(endpoint);
+				con = (HttpURLConnection) url.openConnection();
+				con.setRequestMethod("POST");
+				con.setRequestProperty("Authorization", "Basic "+authStringEnc);
+				con.setRequestProperty("Content-Type", "application/json");
+				con.setDoOutput(true);
+				// prepare the JSON object
+				json = new JSONObject(); 
+				json.put("posttype", "yoguitini-rpower");
+				json.put("datetime", "2014-11-01T00:00:06+0000");
+				json.put("value", new Double(100.41));
+				json.put("receipt", "[some-raw-receipt]");
+				// fire the JSON object
+				osw = new OutputStreamWriter(con.getOutputStream());
+				osw.write(json.toString());
+				osw.flush(); 
+				osw.close();
+				// get response code
+				responseCode = con.getResponseCode(); 
+				System.out.println("'POST' to URL: "+ url);
+				System.out.println("Response Code: "+ responseCode);
+				// get the actual response
+	            br = new BufferedReader(new InputStreamReader(con.getInputStream()));
+	            response = new StringBuffer();
+	            while ((inputLine = br.readLine()) != null) {
+	                response.append(inputLine);
+	            }
+	            br.close();
+	            System.out.println(response);
+	            break; 
+			}
 			
 		} catch (MalformedURLException e) {
 			// TODO Auto-generated catch block
@@ -74,206 +224,31 @@ public class test {
 			
 	}
 	
-	public static void getUser(){
-		// create a new user 
-		try {
-			String endpoint = "https://mobivityloyaltyapi.appspot.com/users/%2B1-949-123-1234"; 
-			String username = "petery"; 
-			String password = "12345123";
-			
-			String authString = username + ":" + password;
-			byte[] authEncBytes = Base64.encodeBase64(authString.getBytes()); 
-			String authStringEnc = new String (authEncBytes);	
-			
-			URL url = new URL(endpoint);
-			HttpURLConnection con = (HttpURLConnection) url.openConnection();
-			con.setRequestMethod("GET");
-			con.setRequestProperty("Authorization", "Basic "+authStringEnc);
-			con.setRequestProperty("Accept", "application/json");
-			con.connect();
-			
-			int responseCode = con.getResponseCode(); 
-			System.out.println("'GET' to URL: "+ url);
-			System.out.println("Response Code: "+ responseCode);
-	
-            BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream()));
-            String inputLine;
-            StringBuffer response = new StringBuffer();
- 
-            while ((inputLine = br.readLine()) != null) {
-                response.append(inputLine);
-            }
-            br.close();
-            
-            System.out.println(response);
-		
-		} catch (MalformedURLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			System.out.println("Malformed URL Exceptions");
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			System.out.println("IO Exceptions");
-		} 
-		
-	}	
-	
-	public static void creditUser(){
-		// credit a user 
-		try {
-			String endpoint = "https://mobivityloyaltyapi.appspot.com/users/%2B1-949-123-1234/credits"; 
-			String username = "petery"; 
-			String password = "12345123";
-			
-			String authString = username + ":" + password;
-			byte[] authEncBytes = Base64.encodeBase64(authString.getBytes()); 
-			String authStringEnc = new String (authEncBytes); 
-			
-			URL url = new URL(endpoint);
-			HttpURLConnection con = (HttpURLConnection) url.openConnection();
-			con.setRequestMethod("POST");
-			con.setRequestProperty("Authorization", "Basic "+authStringEnc);
-			con.setRequestProperty("Content-Type", "application/json");
-			con.setDoOutput(true);
-			
-			JSONObject json = new JSONObject(); 
-			json.put("posttype", "yoguitini-rpower");
-			json.put("datetime", "2014-11-01T00:00:05+0000");
-			json.put("value", new Double(10.41));
-			json.put("receipt", "[some-raw-receipt]");
-			OutputStreamWriter osw = new OutputStreamWriter(con.getOutputStream());
-			osw.write(json.toString());
-			
-			osw.flush(); 
-			osw.close();
-			
-			int responseCode = con.getResponseCode(); 
-			System.out.println("'POST' to URL: "+ url);
-			System.out.println("Response Code: "+ responseCode);
-	
-            BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream()));
-            String inputLine;
-            StringBuffer response = new StringBuffer();
- 
-            while ((inputLine = br.readLine()) != null) {
-                response.append(inputLine);
-            }
-            br.close();
-            
-            System.out.println(response);
-			
-			
-		} catch (MalformedURLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			System.out.println("Malformed URL Exceptions");
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			System.out.println("IO Exceptions");
-		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} 
-	}
-	
-	public static void getRedemption(){
-		// create a new user 
-		try {
-			String endpoint = "https://mobivityloyaltyapi.appspot.com/users/%2B1-949-123-1234"; 
-			String username = "petery"; 
-			String password = "12345123";
-			
-			String authString = username + ":" + password;
-			byte[] authEncBytes = Base64.encodeBase64(authString.getBytes()); 
-			String authStringEnc = new String (authEncBytes);	
-			
-			URL url = new URL(endpoint);
-			HttpURLConnection con = (HttpURLConnection) url.openConnection();
-			con.setRequestMethod("GET");
-			con.setRequestProperty("Authorization", "Basic "+authStringEnc);
-			con.setRequestProperty("Accept", "application/json");
-			con.connect();
-			
-			int responseCode = con.getResponseCode(); 
-			System.out.println("'GET' to URL: "+ url);
-			System.out.println("Response Code: "+ responseCode);
-	
-            BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream()));
-            String inputLine;
-            StringBuffer response = new StringBuffer();
-
-            while ((inputLine = br.readLine()) != null) {
-                response.append(inputLine);
-            }
-            br.close();
-            
-            JSONObject json = new JSONObject (response.toString());
-            JSONArray jsonArray = (JSONArray) json.get("rewards"); 
-            System.out.println(jsonArray);
-
-            if(jsonArray==null||jsonArray.length()==0){
-            	System.out.println("No rewards");
-            }else{
-	            JSONObject[] jsonArr = new JSONObject[jsonArray.length()]; 
-            	System.out.println("Pick a reward:");
-	            for(int i=0;i<jsonArray.length();i++){
-	            	jsonArr[i] = (JSONObject) jsonArray.get(i);
-	            	System.out.println("Reward #"+(i+1)+": "+jsonArr[i]);
-	            }
-	           
-	            // pick the first reward
-	            String redem_link =  jsonArr[0].getString("redemption_link");
-	            URL url_redem = new URL (redem_link); 
-	            HttpURLConnection con_redem = (HttpURLConnection) url_redem.openConnection();
-	            con_redem.setRequestMethod("GET");
-	            con_redem.setRequestProperty("Authorization", "Basic "+authStringEnc);
-	            con_redem.setRequestProperty("Accept", "application/json");
-	            con_redem.connect();
-				
-				int responseCode_redem = con_redem.getResponseCode(); 
-				System.out.println("'GET' to URL: "+ url_redem);
-				System.out.println("Response Code: "+ responseCode_redem);
-		
-	            br = new BufferedReader(new InputStreamReader(con_redem.getInputStream()));
-				response = new StringBuffer(); 
-				
-	            while ((inputLine = br.readLine()) != null) {
-	                response.append(inputLine);
-	            }
-	            br.close();
-				
-	            json = new JSONObject (response.toString()); 
-	            System.out.println(json); 
-
-            }
-		} catch (MalformedURLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			System.out.println("Malformed URL Exceptions");
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			System.out.println("IO Exceptions");
-		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} 
-		
-	}	
-	
 	public static void main(String[] args){
-		
-//		test.createUser();
-//		test.getUser(); 
-//		test.creditUser();
-		test.getRedemption(); 
-		
-		
-		
-		
-		
+
+		/* 1.Inputs for testMobivityLoyaltyApi method: 
+		 * 1.1 "create": create a new user 
+		 * 				This program assumes that phone# is +1-949123-1234
+		 * 1.2 "get/redeem": display the available rewards and 
+		 * 					let user choose one reward
+		 * 1.3 "credit": add credit to the account of a user
+		 * 				This program assumes that phone# is +1-949-123-1234, 
+		 * 				that the posttype is "youitini-rpower" and that 
+		 * 				the value is $100.41.		
+		 * 
+		 * 2.Possible deficiencies
+		 * 
+		 * 3.Tooling/approach: Used JAVA API for JSON, JAVA API for HTTPS
+		 * 
+		 * 4.Possible bugs
+		 * 4.1 When creating a new user, always get Response 200 rather
+		 * 	   than 201
+		 * 4.2 When redeeming a reward, it seems that what's in response 
+		 * 	   is {"success": true} rather than {"value": some_value}
+		 * 
+		 */
+		test.testMobivityLoyaltyApi("get/redeem");
+
 	}
 	
 }
